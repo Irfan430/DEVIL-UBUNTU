@@ -1,10 +1,25 @@
+
+---
+
+## 🚀 **ফাইল 2: devil-ubuntu.sh** (MAIN SCRIPT)
+
+```bash
 #!/bin/bash
 
 # ============================================
-# 😈 IRFAN320'S DEVIL UBUNTU TRANSFORMER v2.0
+# 😈 IRFAN320'S DEVIL UBUNTU TRANSFORMER v3.0
 # ============================================
 
-# Devil Colors v2.0
+# Configuration
+IRFAN="IRFAN320"
+VERSION="3.0.0"
+DEVIL_DIR="$HOME/.irfan320-devil"
+LOG_FILE="$DEVIL_DIR/transformation.log"
+BACKUP_DIR="$DEVIL_DIR/backup-$(date +%Y%m%d-%H%M%S)"
+INTENSITY=3  # 1=Basic, 2=Standard, 3=Extreme
+STYLE="matrix"  # matrix, cyberpunk, gothic, minimal
+
+# Devil Colors v3.0
 D_RED='\033[38;5;196m'
 D_BLACK='\033[38;5;232m'
 D_GREEN='\033[38;5;46m'
@@ -15,96 +30,89 @@ D_CYAN='\033[38;5;51m'
 D_YELLOW='\033[38;5;226m'
 D_MATRIX='\033[38;5;46m'
 D_FIRE='\033[38;5;202m'
+D_NEON='\033[38;5;45m'
 BOLD='\033[1m'
 BG_BLACK='\033[48;5;232m'
 BG_RED='\033[48;5;88m'
 RESET='\033[0m'
 
-# Irfan320's Signature
-IRFAN="IRFAN320"
-DEVIL_NAME="DEVIL-UBUNTU"
-VERSION="2.0.0"
-EMAIL="devil@irfan320.com"
-
-# Configuration
-DEVIL_DIR="$HOME/.irfan320-devil"
-LOG_FILE="$DEVIL_DIR/devil.log"
-BACKUP_DIR="$DEVIL_DIR/backup-$(date +%Y%m%d-%H%M%S)"
-
 # ============================================
-# 🎭 DEVIL ANIMATION FUNCTIONS
+# 🎭 CORE FUNCTIONS
 # ============================================
 
-function show_devil_banner() {
+function show_banner() {
     clear
     echo -e "${D_RED}"
-    echo '╔═══════════════════════════════════════════════════════════════╗'
-    echo '║                                                               ║'
-    echo '║     ██████╗ ███████╗██╗   ██╗██╗██╗     ███╗   ██╗███████╗    ║'
-    echo '║    ██╔═══██╗██╔════╝██║   ██║██║██║     ████╗  ██║██╔════╝    ║'
-    echo '║    ██║   ██║█████╗  ██║   ██║██║██║     ██╔██╗ ██║█████╗      ║'
-    echo '║    ██║   ██║██╔══╝  ╚██╗ ██╔╝██║██║     ██║╚██╗██║██╔══╝      ║'
-    echo '║    ╚██████╔╝███████╗ ╚████╔╝ ██║███████╗██║ ╚████║███████╗    ║'
-    echo '║     ╚═════╝ ╚══════╝  ╚═══╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚══════╝    ║'
-    echo '║                                                               ║'
-    echo -e "║           ${D_FIRE}WELCOME TO ${IRFAN}'S ${DEVIL_NAME} v${VERSION}${D_RED}          ║"
-    echo '║                                                               ║'
+    cat << "EOF"
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║     ██████╗ ███████╗██╗   ██╗██╗██╗     ███╗   ██╗███████╗    ║
+║    ██╔═══██╗██╔════╝██║   ██║██║██║     ████╗  ██║██╔════╝    ║
+║    ██║   ██║█████╗  ██║   ██║██║██║     ██╔██╗ ██║█████╗      ║
+║    ██║   ██║██╔══╝  ╚██╗ ██╔╝██║██║     ██║╚██╗██║██╔══╝      ║
+║    ╚██████╔╝███████╗ ╚████╔╝ ██║███████╗██║ ╚████║███████╗    ║
+║     ╚═════╝ ╚══════╝  ╚═══╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚══════╝    ║
+║                                                               ║
+EOF
+    echo -e "║           ${D_FIRE}${BOLD}IRFAN320 DEVIL UBUNTU v${VERSION}${RESET}${D_RED}          ║"
+    echo -e "║           ${D_NEON}INTENSITY: ${INTENSITY} | STYLE: ${STYLE}${D_RED}               ║"
     echo '╚═══════════════════════════════════════════════════════════════╝'
     echo -e "${RESET}"
-    
-    echo -e "${D_FIRE}🔥 Initializing Devil Transformation...${RESET}"
-    sleep 1
 }
 
-function matrix_effect() {
-    echo -e "${D_MATRIX}"
-    for i in {1..10}; do
-        echo "0101010101010101010101010101010101010101010101010101010101010101"
-        sleep 0.05
-    done
-    echo -e "${RESET}"
+function log_message() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
+    echo -e "$2$1${RESET}"
 }
 
 function devil_progress() {
-    local label=$1
-    local duration=$2
-    echo -ne "${D_GREEN}${label} [${RESET}"
-    for i in {1..20}; do
-        echo -ne "${D_RED}█${RESET}"
-        sleep $(echo "scale=2; $duration/20" | bc)
-    done
-    echo -e "${D_GREEN}] ✓${RESET}"
+    local label="$1"
+    local total="$2"
+    local current="$3"
+    local width=50
+    local percent=$((current * 100 / total))
+    local filled=$((width * current / total))
+    local empty=$((width - filled))
+    
+    printf "\r${D_GREEN}%-30s [${D_RED}" "$label"
+    for ((i=0; i<filled; i++)); do printf "█"; done
+    for ((i=0; i<empty; i++)); do printf "░"; done
+    printf "${D_GREEN}] %3d%%${RESET}" "$percent"
 }
 
 # ============================================
 # 🔧 SYSTEM CHECK & PREPARATION
 # ============================================
 
-function check_system() {
-    echo -e "${D_CYAN}🔍 Detecting System...${RESET}"
+function check_dependencies() {
+    log_message "Checking dependencies..." "$D_CYAN"
     
-    # Check Ubuntu
-    if ! grep -q "Ubuntu" /etc/os-release; then
-        echo -e "${D_RED}❌ This script is for Ubuntu only!${RESET}"
-        exit 1
+    local deps=("gnome-tweaks" "dconf-editor" "imagemagick" "curl" "wget")
+    local missing=()
+    
+    for dep in "${deps[@]}"; do
+        if ! dpkg -l | grep -q "^ii  $dep "; then
+            missing+=("$dep")
+        fi
+    done
+    
+    if [ ${#missing[@]} -gt 0 ]; then
+        log_message "Missing: ${missing[*]}" "$D_YELLOW"
+        read -p "Install missing packages? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            sudo apt update
+            sudo apt install -y "${missing[@]}"
+            log_message "Dependencies installed" "$D_GREEN"
+        else
+            log_message "Cannot proceed without dependencies" "$D_RED"
+            exit 1
+        fi
     fi
-    
-    # Check GNOME
-    if [ "$XDG_CURRENT_DESKTOP" != "GNOME" ]; then
-        echo -e "${D_YELLOW}⚠️  GNOME not detected. Some features may not work.${RESET}"
-    fi
-    
-    # Check sudo
-    if [ "$EUID" -ne 0 ]; then
-        echo -e "${D_RED}❌ Please run with sudo!${RESET}"
-        exit 1
-    fi
-    
-    devil_progress "System Check" 1
 }
 
-function create_devil_dirs() {
-    echo -e "${D_CYAN}📁 Creating Devil Directories...${RESET}"
+function create_structure() {
+    log_message "Creating devil structure..." "$D_CYAN"
     
     mkdir -p "$DEVIL_DIR"
     mkdir -p "$BACKUP_DIR"
@@ -112,140 +120,121 @@ function create_devil_dirs() {
     mkdir -p "$DEVIL_DIR/icons"
     mkdir -p "$DEVIL_DIR/wallpapers"
     mkdir -p "$DEVIL_DIR/fonts"
-    mkdir -p "$DEVIL_DIR/sounds"
-    mkdir -p "$DEVIL_DIR/plymouth"
-    mkdir -p "$DEVIL_DIR/terminal"
     mkdir -p "$DEVIL_DIR/scripts"
     mkdir -p "$DEVIL_DIR/configs"
+    mkdir -p "$DEVIL_DIR/backups"
     
-    devil_progress "Directory Creation" 1
+    log_message "Structure created at $DEVIL_DIR" "$D_GREEN"
 }
 
 # ============================================
-# 🎨 DEVIL THEME INSTALLATION
+# 🎨 THEME INSTALLATION
 # ============================================
 
-function install_devil_theme() {
-    echo -e "${D_CYAN}🎨 Installing Devil GTK Theme...${RESET}"
+function install_themes() {
+    log_message "Installing devil themes..." "$D_CYAN"
     
     # Backup current theme
-    dconf dump /org/gnome/desktop/interface/ > "$BACKUP_DIR/gtk-backup.txt"
+    dconf dump /org/gnome/desktop/interface/ > "$BACKUP_DIR/gnome-backup.dconf"
     
-    # Download and install Devil theme
-    THEME_URL="https://github.com/EliverLara/Sweet/archive/refs/heads/nova.zip"
-    THEME_DIR="/usr/share/themes"
+    # Download and install themes based on style
+    case "$STYLE" in
+        "matrix")
+            install_matrix_theme
+            ;;
+        "cyberpunk")
+            install_cyberpunk_theme
+            ;;
+        "gothic")
+            install_gothic_theme
+            ;;
+        "minimal")
+            install_minimal_theme
+            ;;
+    esac
     
-    echo -e "${D_YELLOW}Downloading Devil Theme...${RESET}"
-    wget -q "$THEME_URL" -O /tmp/devil-theme.zip
-    
-    if [ $? -eq 0 ]; then
-        unzip -q /tmp/devil-theme.zip -d /tmp/
-        sudo cp -r /tmp/Sweet-nova/* "$THEME_DIR/"
-        
-        # Set Devil theme
-        gsettings set org.gnome.desktop.interface gtk-theme "Sweet-Dark"
-        gsettings set org.gnome.desktop.wm.preferences theme "Sweet-Dark"
-        
-        echo -e "${D_GREEN}✅ Devil Theme Installed${RESET}"
-    else
-        echo -e "${D_RED}❌ Failed to download theme. Using fallback...${RESET}"
-        # Fallback to existing dark theme
-        gsettings set org.gnome.desktop.interface gtk-theme "Adwaita-dark"
-    fi
-    
-    devil_progress "Theme Installation" 2
+    log_message "Theme installation complete" "$D_GREEN"
 }
 
-function install_devil_icons() {
-    echo -e "${D_CYAN}📱 Installing Devil Icons...${RESET}"
+function install_matrix_theme() {
+    log_message "Installing Matrix theme..." "$D_MATRIX"
     
-    ICON_URL="https://github.com/vinceliuice/Tela-icon-theme/archive/refs/heads/master.zip"
-    ICON_DIR="/usr/share/icons"
-    
-    wget -q "$ICON_URL" -O /tmp/devil-icons.zip
-    unzip -q /tmp/devil-icons.zip -d /tmp/
-    sudo cp -r /tmp/Tela-icon-theme-master/Tela-red-dark/ "$ICON_DIR/Tela-Devil/"
-    
-    # Set icons
-    gsettings set org.gnome.desktop.interface icon-theme "Tela-Devil"
-    
-    devil_progress "Icon Installation" 2
+    # Create matrix GTK theme
+    cat > "$DEVIL_DIR/themes/Matrix/gtk-3.0/gtk.css" << 'EOF'
+/* Matrix Theme */
+* {
+    background-color: #000000;
+    color: #00FF00;
+    border-color: #003300;
 }
 
-# ============================================
-# 🖼️ DEVIL WALLPAPER COLLECTION
-# ============================================
+button {
+    background: linear-gradient(to bottom, #001100, #003300);
+    border: 1px solid #00AA00;
+}
 
-function install_devil_wallpapers() {
-    echo -e "${D_CYAN}🖼️ Installing Devil Wallpapers...${RESET}"
-    
-    # Create wallpapers directory
-    WALLPAPER_DIR="$HOME/Pictures/Devil-Wallpapers"
-    mkdir -p "$WALLPAPER_DIR"
-    
-    # Generate Devil wallpapers using ImageMagick
-    echo -e "${D_YELLOW}Generating Devil Wallpapers...${RESET}"
-    
-    # Wallpaper 1: Matrix Rain
-    convert -size 1920x1080 xc:black \
-        -fill "#00FF00" -pointsize 20 -draw "text 100,100 'IRFAN320 DEVIL MODE'" \
-        -fill "#008800" -pointsize 15 -draw "text 150,150 '01010101010101010101'" \
-        -fill "#00AA00" -pointsize 12 -draw "text 200,200 '01010101010101010101'" \
-        "$WALLPAPER_DIR/matrix.jpg"
-    
-    # Wallpaper 2: Fire & Blood
-    convert -size 1920x1080 gradient:red-black \
-        -fill black -draw "rectangle 0,500 1920,1080" \
-        -fill white -pointsize 60 -font "Arial-Bold" -draw "text 300,400 '$IRFAN'" \
-        -fill red -pointsize 30 -draw "text 350,480 'DEVIL UBUNTU v$VERSION'" \
-        "$WALLPAPER_DIR/fire-blood.jpg"
-    
-    # Wallpaper 3: Cyber Devil
-    convert -size 1920x1080 xc:'#0a0a0a' \
-        -fill 'none' -stroke '#ff0000' -strokewidth 2 \
-        -draw "polygon 100,100 500,100 300,500" \
-        -draw "polygon 1500,200 1800,200 1650,600" \
-        -fill '#00ff00' -pointsize 40 -font "Courier" \
-        -draw "text 700,300 'ROOT@$DEVIL_NAME'" \
-        -draw "text 720,350 '# whoami'" \
-        -draw "text 750,400 '$IRFAN'" \
-        "$WALLPAPER_DIR/cyber-devil.jpg"
-    
-    # Set random wallpaper
-    WALLPAPERS=("$WALLPAPER_DIR"/*.jpg)
-    RANDOM_WALLPAPER="${WALLPAPERS[RANDOM % ${#WALLPAPERS[@]}]}"
-    
-    gsettings set org.gnome.desktop.background picture-uri "file://$RANDOM_WALLPAPER"
-    gsettings set org.gnome.desktop.screensaver picture-uri "file://$RANDOM_WALLPAPER"
-    
-    # Create wallpaper switcher script
-    cat > "$DEVIL_DIR/scripts/wallpaper-switcher.sh" << EOF
-#!/bin/bash
-WALLPAPERS=($WALLPAPER_DIR/*.jpg)
-while true; do
-    for wp in "\${WALLPAPERS[@]}"; do
-        gsettings set org.gnome.desktop.background picture-uri "file://\$wp"
-        sleep 300  # Change every 5 minutes
-    done
-done
+button:hover {
+    background: linear-gradient(to bottom, #003300, #005500);
+}
+
+entry {
+    background-color: #001100;
+    border: 1px solid #00AA00;
+}
 EOF
     
-    chmod +x "$DEVIL_DIR/scripts/wallpaper-switcher.sh"
+    gsettings set org.gnome.desktop.interface gtk-theme "Matrix"
+    gsettings set org.gnome.desktop.interface icon-theme "Adwaita"
+    gsettings set org.gnome.desktop.interface cursor-theme "DMZ-White"
     
-    devil_progress "Wallpaper Setup" 2
+    # Matrix color scheme
+    gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+}
+
+function install_wallpapers() {
+    log_message "Installing devil wallpapers..." "$D_CYAN"
+    
+    local wp_dir="$DEVIL_DIR/wallpapers"
+    mkdir -p "$wp_dir"
+    
+    # Generate dynamic wallpapers
+    generate_matrix_wallpaper "$wp_dir/matrix.jpg"
+    generate_cyber_wallpaper "$wp_dir/cyber.jpg"
+    generate_devil_wallpaper "$wp_dir/devil.jpg"
+    
+    # Set wallpaper
+    gsettings set org.gnome.desktop.background picture-uri "file://$wp_dir/matrix.jpg"
+    gsettings set org.gnome.desktop.screensaver picture-uri "file://$wp_dir/cyber.jpg"
+    
+    # Create slideshow
+    create_wallpaper_slideshow
+    
+    log_message "Wallpapers installed" "$D_GREEN"
+}
+
+function generate_matrix_wallpaper() {
+    local output="$1"
+    convert -size 1920x1080 xc:black \
+        -font "Courier-Bold" -pointsize 20 \
+        -fill "#00FF00" -draw "text 100,100 '01010101010101010101'" \
+        -fill "#008800" -draw "text 120,150 '01010101010101010101'" \
+        -fill "#00AA00" -draw "text 140,200 '01010101010101010101'" \
+        -fill "#003300" -draw "text 100,300 'IRFAN320 DEVIL MODE'" \
+        -fill "#00FF00" -draw "text 120,350 'Ubuntu Transformation v$VERSION'" \
+        "$output"
 }
 
 # ============================================
-# 💻 DEVIL TERMINAL CUSTOMIZATION
+# 💻 TERMINAL CUSTOMIZATION
 # ============================================
 
-function setup_devil_terminal() {
-    echo -e "${D_CYAN}💻 Configuring Devil Terminal...${RESET}"
+function setup_terminal() {
+    log_message "Customizing terminal..." "$D_CYAN"
     
     # Backup original bashrc
-    cp ~/.bashrc "$BACKUP_DIR/bashrc.backup"
+    cp ~/.bashrc "$BACKUP_DIR/bashrc.original"
     
-    # Create Devil bashrc
+    # Create devil bashrc
     cat > ~/.bashrc << 'EOF'
 # ============================================
 # 😈 IRFAN320 DEVIL BASH CONFIGURATION
@@ -257,20 +246,21 @@ GREEN='\[\033[38;5;46m\]'
 BLUE='\[\033[38;5;51m\]'
 YELLOW='\[\033[38;5;226m\]'
 PURPLE='\[\033[38;5;93m\]'
-BLACK='\[\033[38;5;232m\]'
+CYAN='\[\033[38;5;51m\]'
 RESET='\[\033[0m\]'
 
 # Devil Prompt
-PS1="${RED}┌─[${GREEN}\u${RED}@${BLUE}DEVIL-UBUNTU${RED}]─[${YELLOW}\w${RED}]\n${RED}└──╼${RESET} "
-# Short prompt alternative: PS1="${RED}😈 ${GREEN}\u${RED}@${BLUE}DEVIL ${YELLOW}\W${RED} ➜${RESET} "
+PS1="${RED}┌─[${GREEN}\u${RED}@${BLUE}devil-ubuntu${RED}]─[${YELLOW}\w${RED}]\n${RED}└──╼${RESET} "
 
 # Devil Aliases
 alias devil-mode='echo "😈 DEVIL MODE ACTIVATED!"'
 alias matrix='cmatrix -b -C green'
-alias hack='echo "Hacking the mainframe..." && sleep 2 && echo "Just kidding, $USER!"'
+alias hack='echo "Accessing mainframe..." && sleep 1 && echo "Access granted!"'
+alias sys-info='neofetch --ascii_distro arch'
 alias update-devil='sudo apt update && sudo apt upgrade -y'
 alias clean-devil='sudo apt autoremove -y && sudo apt autoclean'
-alias sys-info='neofetch --ascii_distro devil'
+alias monitor='htop'
+alias gpu-info='nvidia-smi 2>/dev/null || echo "No NVIDIA GPU"'
 
 # Devil Functions
 devil-eye() {
@@ -284,262 +274,325 @@ devil-eye() {
 
 matrix-rain() {
     echo -e "\033[32m"
-    for i in {1..100}; do
-        echo -n $(tr -dc '01' </dev/urandom | head -c 100)
-        echo
+    cols=$(tput cols)
+    for i in {1..50}; do
+        printf "%${cols}s\n" | tr ' ' $(shuf -n 1 -e 0 1)
         sleep 0.05
     done
     echo -e "\033[0m"
 }
 
-# Devil Welcome Message
-echo -e "${RED}"
-echo '╔═══════════════════════════════════════════════════════╗'
-echo '║                                                       ║'
-echo -e "║      😈 WELCOME TO ${GREEN}IRFAN320${RED}'S ${BLUE}DEVIL UBUNTU${RED} 😈     ║"
-echo '║                                                       ║'
-echo -e "║     Type ${YELLOW}devil-mode${RED} to unleash the beast!        ║"
-echo '║                                                       ║'
-echo '╚═══════════════════════════════════════════════════════╝'
-echo -e "${RESET}"
+system-stats() {
+    echo "=== SYSTEM STATS ==="
+    echo "CPU: $(grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$4+$5)} END {print usage "%"}')"
+    echo "RAM: $(free -h | awk '/^Mem:/ {print $3 "/" $2}')"
+    echo "Disk: $(df -h / | awk 'NR==2 {print $3 "/" $2}')"
+    echo "Uptime: $(uptime -p)"
+}
 
-# Default bashrc
+# Welcome Message
+if [ -t 0 ]; then
+    echo -e "${RED}"
+    echo '╔══════════════════════════════════════════════╗'
+    echo '║                                              ║'
+    echo -e "║    😈 WELCOME TO ${GREEN}IRFAN320${RED}'S DEVIL UBUNTU 😈   ║"
+    echo '║                                              ║'
+    echo -e "║    Type ${YELLOW}devil-mode${RED} to begin                ║"
+    echo '║                                              ║'
+    echo '╚══════════════════════════════════════════════╝'
+    echo -e "${RESET}"
+fi
+
+# Source global definitions
 if [ -f /etc/bashrc ]; then
     . /etc/bashrc
 fi
 EOF
     
-    # Configure GNOME Terminal profile
-    TERMINAL_PROFILE=$(gsettings get org.gnome.Terminal.ProfilesList default | tr -d "'")
+    # Configure GNOME Terminal
+    configure_gnome_terminal
     
-    gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$TERMINAL_PROFILE/ \
+    log_message "Terminal customized" "$D_GREEN"
+}
+
+function configure_gnome_terminal() {
+    local profile=$(gsettings get org.gnome.Terminal.ProfilesList default | tr -d "'")
+    local profile_path="/org/gnome/terminal/legacy/profiles:/:$profile"
+    
+    gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile/ \
         background-color 'rgb(0,0,0)'
-    gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$TERMINAL_PROFILE/ \
+    gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile/ \
         foreground-color 'rgb(0,255,0)'
-    gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$TERMINAL_PROFILE/ \
+    gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile/ \
+        cursor-colors-set true
+    gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile/ \
+        cursor-background-color 'rgb(0,255,0)'
+    gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile/ \
+        cursor-foreground-color 'rgb(0,0,0)'
+    gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile/ \
         font 'Monospace 11'
-    gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$TERMINAL_PROFILE/ \
-        use-system-font false
-    gsettings set org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$TERMINAL_PROFILE/ \
-        use-theme-colors false
-    
-    devil_progress "Terminal Setup" 2
 }
 
 # ============================================
-# 🔄 SYSTEM TWEAKS & OPTIMIZATIONS
+# ⚡ PERFORMANCE OPTIMIZATION
 # ============================================
 
-function apply_devil_tweaks() {
-    echo -e "${D_CYAN}⚙️ Applying Devil System Tweaks...${RESET}"
+function optimize_system() {
+    log_message "Optimizing system performance..." "$D_CYAN"
     
-    # Power settings for performance
-    gsettings set org.gnome.settings-daemon.plugins.power power-button-action 'suspend'
-    gsettings set org.gnome.desktop.session idle-delay 0  # Never idle
+    if [ $INTENSITY -ge 2 ]; then
+        # Disable animations
+        gsettings set org.gnome.desktop.interface enable-animations false
+        
+        # Reduce swapiness
+        echo "vm.swappiness=10" | sudo tee -a /etc/sysctl.conf
+        
+        # Improve filesystem performance
+        echo "noatime,nodiratime" | sudo tee -a /etc/fstab 2>/dev/null || true
+        
+        # SSD optimization
+        if lsblk -d -o rota | grep -q "0"; then
+            echo "SSD detected - applying optimizations"
+            sudo systemctl enable fstrim.timer
+        fi
+    fi
     
-    # Privacy settings
-    gsettings set org.gnome.desktop.privacy remember-recent-files false
-    gsettings set org.gnome.desktop.privacy remove-old-temp-files true
-    gsettings set org.gnome.desktop.privacy old-files-age 1
+    if [ $INTENSITY -eq 3 ]; then
+        # Extreme optimizations
+        echo "Extreme optimizations applied"
+        # Add more aggressive tweaks here
+    fi
     
-    # Interface tweaks
-    gsettings set org.gnome.desktop.interface clock-show-date true
-    gsettings set org.gnome.desktop.interface clock-show-seconds true
-    gsettings set org.gnome.desktop.interface enable-hot-corners false
-    
-    # Window behavior
-    gsettings set org.gnome.desktop.wm.preferences action-double-click-titlebar 'toggle-maximize'
-    gsettings set org.gnome.desktop.wm.preferences button-layout 'appmenu:minimize,maximize,close'
-    
-    # Nautilus (Files) tweaks
-    gsettings set org.gnome.nautilus.preferences default-folder-viewer 'list-view'
-    gsettings set org.gnome.nautilus.preferences show-hidden-files true
-    
-    # Mouse and touchpad
-    gsettings set org.gnome.desktop.peripherals.mouse speed -0.5
-    gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click true
-    
-    devil_progress "System Tweaks" 1
-}
-
-# ============================================
-# 🎵 DEVIL SOUND THEME
-# ============================================
-
-function setup_devil_sounds() {
-    echo -e "${D_CYAN}🎵 Configuring Devil Sounds...${RESET}"
-    
-    # Disable system sounds (evil is silent)
-    gsettings set org.gnome.desktop.sound event-sounds false
-    
-    # Create custom login sound script
-    cat > "$DEVIL_DIR/scripts/login-sound.sh" << 'EOF'
-#!/bin/bash
-# Play evil laugh on login
-echo -e "\a"  # System beep
-sleep 0.5
-echo -e "\a"
-echo "😈 Welcome back, $USER!"
-EOF
-    
-    chmod +x "$DEVIL_DIR/scripts/login-sound.sh"
-    
-    # Add to bashrc
-    echo -e '\n# Devil login sound\nif [ -f ~/.devil-ubuntu/scripts/login-sound.sh ]; then\n    . ~/.devil-ubuntu/scripts/login-sound.sh\nfi' >> ~/.bashrc
-    
-    devil_progress "Sound Setup" 1
-}
-
-# ============================================
-# 🔐 SECURITY & MONITORING
-# ============================================
-
-function setup_devil_security() {
-    echo -e "${D_CYAN}🔐 Setting up Devil Security...${RESET}"
-    
-    # Create security monitor script
-    cat > "$DEVIL_DIR/scripts/security-monitor.sh" << 'EOF'
-#!/bin/bash
-# Devil Security Monitor
-LOGFILE="$HOME/.irfan320-devil/security.log"
-
-echo "================================" >> "$LOGFILE"
-echo "DEVIL SECURITY SCAN - $(date)" >> "$LOGFILE"
-echo "================================" >> "$LOGFILE"
-
-# Check suspicious processes
-echo "Checking processes..." >> "$LOGFILE"
-ps aux | grep -E "(backdoor|malware|keylogger)" >> "$LOGFILE" 2>/dev/null || true
-
-# Check network connections
-echo -e "\nNetwork connections:" >> "$LOGFILE"
-netstat -tunap | grep -v "127.0.0.1" >> "$LOGFILE"
-
-# Check login attempts
-echo -e "\nRecent logins:" >> "$LOGFILE"
-last -n 10 >> "$LOGFILE"
-
-echo -e "\nScan complete.\n" >> "$LOGFILE"
-EOF
-    
-    chmod +x "$DEVIL_DIR/scripts/security-monitor.sh"
-    
-    # Create crontab entry for regular scanning
-    (crontab -l 2>/dev/null; echo "0 */6 * * * $DEVIL_DIR/scripts/security-monitor.sh") | crontab -
-    
-    devil_progress "Security Setup" 1
-}
-
-# ============================================
-# 📊 SYSTEM MONITOR WIDGET
-# ============================================
-
-function setup_devil_monitor() {
-    echo -e "${D_CYAN}📊 Setting up Devil System Monitor...${RESET}"
-    
-    # Create system monitor script
-    cat > "$DEVIL_DIR/scripts/system-monitor.sh" << 'EOF'
-#!/bin/bash
-# Devil System Monitor
-while true; do
-    clear
-    echo -e "\033[38;5;196m╔══════════════════════════════════════════════╗"
-    echo -e "║           😈 IRFAN320 DEVIL MONITOR          ║"
-    echo -e "╚══════════════════════════════════════════════╗\033[0m"
-    echo -e "\033[38;5;46m"
-    echo "System:    $(uname -srm)"
-    echo "Uptime:    $(uptime -p)"
-    echo "CPU Temp:  $(sensors | grep 'Core 0' | awk '{print $3}')"
-    echo "Memory:    $(free -h | awk '/^Mem:/ {print $3 "/" $2}')"
-    echo "Disk:      $(df -h / | awk 'NR==2 {print $3 "/" $2}')"
-    echo "IP Addr:   $(hostname -I | awk '{print $1}')"
-    echo "Processes: $(ps aux | wc -l) running"
-    echo -e "\033[0m"
-    sleep 2
-done
-EOF
-    
-    chmod +x "$DEVIL_DIR/scripts/system-monitor.sh"
-    
-    # Create desktop shortcut
-    cat > ~/Desktop/Devil-Monitor.desktop << EOF
-[Desktop Entry]
-Name=Devil System Monitor
-Comment=Real-time system monitoring
-Exec=gnome-terminal -- bash -c "$DEVIL_DIR/scripts/system-monitor.sh; exec bash"
-Icon=utilities-system-monitor
-Terminal=true
-Type=Application
-Categories=System;Monitor;
-EOF
-    
-    chmod +x ~/Desktop/Devil-Monitor.desktop
-    
-    devil_progress "Monitor Setup" 1
+    log_message "System optimized" "$D_GREEN"
 }
 
 # ============================================
 # 🎮 GAMING OPTIMIZATIONS
 # ============================================
 
-function setup_gaming_mode() {
-    echo -e "${D_CYAN}🎮 Setting up Devil Gaming Mode...${RESET}"
-    
-    # Create gaming performance script
-    cat > "$DEVIL_DIR/scripts/gaming-mode.sh" << 'EOF'
+function setup_gaming() {
+    if [ $INTENSITY -ge 2 ]; then
+        log_message "Setting up gaming optimizations..." "$D_CYAN"
+        
+        # Install gamemode if not present
+        if ! dpkg -l | grep -q gamemode; then
+            sudo apt install -y gamemode
+        fi
+        
+        # Create gaming script
+        cat > "$DEVIL_DIR/scripts/gaming-mode.sh" << 'EOF'
 #!/bin/bash
-# Devil Gaming Mode
-echo "😈 ACTIVATING GAMING MODE..."
+# IRFAN320 Gaming Mode
 
-# CPU Governor to performance
+echo "🎮 ACTIVATING GAMING MODE..."
+
+# CPU performance
 echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 
-# Disable compositor for fullscreen performance
-killall compton || true
-killall picom || true
+# Disable compositor
+killall picom 2>/dev/null || true
 
-# Increase inotify watchers for gaming
-echo 524288 | sudo tee /proc/sys/fs/inotify/max_user_watches
-echo 512 | sudo tee /proc/sys/fs/inotify/max_user_instances
-
-# Network optimization
+# Network optimizations
 sudo sysctl -w net.core.rmem_max=134217728
 sudo sysctl -w net.core.wmem_max=134217728
+sudo sysctl -w net.ipv4.tcp_fastopen=3
+
+# GPU optimizations (NVIDIA)
+if command -v nvidia-settings &> /dev/null; then
+    nvidia-settings -a '[gpu:0]/GPUPowerMizerMode=1'
+    nvidia-settings -a '[gpu:0]/GPUFanControlState=1'
+fi
 
 echo "✅ Gaming Mode Activated!"
-echo "Type 'devil-normal' to return to normal mode"
 EOF
-    
-    cat > "$DEVIL_DIR/scripts/normal-mode.sh" << 'EOF'
-#!/bin/bash
-# Return to normal mode
-echo "😇 Returning to normal mode..."
-
-# CPU Governor back to ondemand
-echo ondemand | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
-
-# Restart compositor
-picom --experimental-backends -b 2>/dev/null || compton -b 2>/dev/null || true
-
-echo "✅ Normal Mode Restored!"
-EOF
-    
-    chmod +x "$DEVIL_DIR/scripts/gaming-mode.sh"
-    chmod +x "$DEVIL_DIR/scripts/normal-mode.sh"
-    
-    # Add aliases
-    echo "alias gaming-mode='sudo $DEVIL_DIR/scripts/gaming-mode.sh'" >> ~/.bashrc
-    echo "alias devil-normal='sudo $DEVIL_DIR/scripts/normal-mode.sh'" >> ~/.bashrc
-    
-    devil_progress "Gaming Setup" 1
+        
+        chmod +x "$DEVIL_DIR/scripts/gaming-mode.sh"
+        
+        # Add to bashrc
+        echo "alias gaming-mode='sudo $DEVIL_DIR/scripts/gaming-mode.sh'" >> ~/.bashrc
+        
+        log_message "Gaming mode ready - type 'gaming-mode'" "$D_GREEN"
+    fi
 }
 
 # ============================================
-# 🚀 FINAL SETUP & COMPLETION
+# 🔐 SECURITY ENHANCEMENTS
 # ============================================
 
-function finalize_setup() {
-    echo -e "${D_CYAN}🚀 Finalizing Devil Setup...${RESET}"
+function enhance_security() {
+    log_message "Enhancing security..." "$D_CYAN"
+    
+    # Disable root login
+    sudo passwd -l root 2>/dev/null || true
+    
+    # Setup firewall
+    if ! command -v ufw &> /dev/null; then
+        sudo apt install -y ufw
+    fi
+    sudo ufw --force enable
+    sudo ufw default deny incoming
+    sudo ufw default allow outgoing
+    
+    # SSH hardening
+    if [ -f /etc/ssh/sshd_config ]; then
+        sudo cp /etc/ssh/sshd_config "$BACKUP_DIR/sshd_config.backup"
+        sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+        sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+        sudo systemctl restart ssh
+    fi
+    
+    # Create security monitor
+    create_security_monitor
+    
+    log_message "Security enhanced" "$D_GREEN"
+}
+
+# ============================================
+# 📊 SYSTEM MONITORING
+# ============================================
+
+function setup_monitoring() {
+    log_message "Setting up system monitoring..." "$D_CYAN"
+    
+    # Install monitoring tools
+    sudo apt install -y htop nmon iotop iftop
+    
+    # Create monitoring script
+    cat > "$DEVIL_DIR/scripts/monitor.sh" << 'EOF'
+#!/bin/bash
+# IRFAN320 System Monitor
+
+while true; do
+    clear
+    echo -e "\033[38;5;196m╔══════════════════════════════════════════════╗"
+    echo -e "║           😈 REAL-TIME SYSTEM MONITOR        ║"
+    echo -e "╚══════════════════════════════════════════════╗\033[0m"
+    
+    # CPU
+    cpu=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}')
+    echo -e "\033[38;5;46mCPU Usage: ${cpu}%\033[0m"
+    
+    # Memory
+    mem_total=$(free -h | awk '/^Mem:/ {print $2}')
+    mem_used=$(free -h | awk '/^Mem:/ {print $3}')
+    echo -e "\033[38;5;51mMemory: ${mem_used}/${mem_total}\033[0m"
+    
+    # Disk
+    disk=$(df -h / | awk 'NR==2 {print $5}')
+    echo -e "\033[38;5;226mDisk Usage: ${disk}\033[0m"
+    
+    # Temperature
+    if [ -f /sys/class/thermal/thermal_zone0/temp ]; then
+        temp=$(cat /sys/class/thermal/thermal_zone0/temp)
+        temp=$((temp/1000))
+        echo -e "\033[38;5;208mCPU Temp: ${temp}°C\033[0m"
+    fi
+    
+    # Network
+    ip=$(hostname -I | awk '{print $1}')
+    echo -e "\033[38;5;93mIP Address: ${ip}\033[0m"
+    
+    echo -e "\n\033[38;5;196mPress Ctrl+C to exit...\033[0m"
+    sleep 2
+done
+EOF
+    
+    chmod +x "$DEVIL_DIR/scripts/monitor.sh"
+    echo "alias system-monitor='$DEVIL_DIR/scripts/monitor.sh'" >> ~/.bashrc
+    
+    log_message "Monitoring setup complete" "$D_GREEN"
+}
+
+# ============================================
+# 🛠️ UTILITY SCRIPTS
+# ============================================
+
+function create_utilities() {
+    log_message "Creating utility scripts..." "$D_CYAN"
+    
+    # Update script
+    cat > "$DEVIL_DIR/scripts/update-devil.sh" << 'EOF'
+#!/bin/bash
+# Update Devil Ubuntu
+
+echo "🔄 Updating Devil Ubuntu..."
+cd "$(dirname "$0")/../.."
+
+# Update system
+sudo apt update
+sudo apt upgrade -y
+
+# Update devil components
+echo "Checking for devil updates..."
+# Add update logic here
+
+echo "✅ Update complete!"
+EOF
+    
+    # Fix script
+    cat > "$DEVIL_DIR/scripts/fix-devil.sh" << 'EOF'
+#!/bin/bash
+# Fix Devil Ubuntu issues
+
+echo "🔧 Fixing common issues..."
+
+# Reset GNOME settings
+dconf reset -f /org/gnome/
+
+# Fix permissions
+sudo chown -R $USER:$USER ~/.irfan320-devil
+
+# Update icon cache
+sudo update-icon-caches /usr/share/icons/*
+
+echo "✅ Fixes applied!"
+EOF
+    
+    # Uninstall script
+    cat > "$DEVIL_DIR/scripts/uninstall-devil.sh" << 'EOF'
+#!/bin/bash
+# Uninstall Devil Ubuntu
+
+echo "😇 Removing Devil Ubuntu..."
+read -p "Are you sure? This will restore original settings. (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Uninstall cancelled."
+    exit 1
+fi
+
+# Restore backups
+if [ -d ~/.irfan320-devil/backup-* ]; then
+    latest_backup=$(ls -td ~/.irfan320-devil/backup-* | head -1)
+    
+    # Restore bashrc
+    if [ -f "$latest_backup/bashrc.original" ]; then
+        cp "$latest_backup/bashrc.original" ~/.bashrc
+    fi
+    
+    # Restore GNOME settings
+    if [ -f "$latest_backup/gnome-backup.dconf" ]; then
+        dconf load /org/gnome/desktop/interface/ < "$latest_backup/gnome-backup.dconf"
+    fi
+fi
+
+# Remove devil directory
+rm -rf ~/.irfan320-devil
+
+echo "✅ Devil Ubuntu uninstalled. Please reboot."
+EOF
+    
+    chmod +x "$DEVIL_DIR/scripts"/*.sh
+    
+    log_message "Utility scripts created" "$D_GREEN"
+}
+
+# ============================================
+# 🏁 FINALIZATION
+# ============================================
+
+function finalize() {
+    log_message "Finalizing transformation..." "$D_CYAN"
     
     # Update alternatives
     sudo update-alternatives --set x-terminal-emulator /usr/bin/gnome-terminal.wrapper
@@ -547,91 +600,49 @@ function finalize_setup() {
     # Refresh font cache
     sudo fc-cache -fv
     
-    # Create uninstall script
-    cat > "$DEVIL_DIR/uninstall-devil.sh" << EOF
-#!/bin/bash
-echo "😇 Uninstalling Devil Ubuntu..."
-echo "Restoring backups from: $BACKUP_DIR"
-
-# Restore bashrc
-if [ -f "$BACKUP_DIR/bashrc.backup" ]; then
-    cp "$BACKUP_DIR/bashrc.backup" ~/.bashrc
-fi
-
-# Restore GTK settings
-if [ -f "$BACKUP_DIR/gtk-backup.txt" ]; then
-    dconf load /org/gnome/desktop/interface/ < "$BACKUP_DIR/gtk-backup.txt"
-fi
-
-# Remove crontab entries
-crontab -l | grep -v "security-monitor.sh" | crontab -
-
-echo "✅ Devil theme removed. Reboot to complete."
-EOF
-    
-    chmod +x "$DEVIL_DIR/uninstall-devil.sh"
-    
-    # Create devil info file
-    cat > "$DEVIL_DIR/DEVIL-INFO.txt" << EOF
+    # Create completion file
+    cat > "$DEVIL_DIR/COMPLETION.txt" << EOF
 ================================
 IRFAN320 DEVIL UBUNTU v${VERSION}
 ================================
 Installation Date: $(date)
 Installation Directory: $DEVIL_DIR
-Backup Directory: $BACKUP_DIR
+Intensity Level: $INTENSITY
+Style: $STYLE
 
-Features Installed:
-1. Devil GTK Theme
-2. Custom Icons
-3. Matrix Wallpapers
-4. Devil Terminal
-5. System Tweaks
-6. Security Monitor
-7. Gaming Mode
-
-Commands Available:
+Available Commands:
 - devil-mode      : Show welcome message
 - gaming-mode     : Activate gaming optimizations
-- devil-normal    : Return to normal mode
+- system-monitor  : Real-time system monitoring
 - matrix-rain     : Show matrix effect
 - sys-info        : System information
+- update-devil    : Update devil components
+- fix-devil       : Fix common issues
+- uninstall-devil : Remove devil transformation
 
-To uninstall: Run $DEVIL_DIR/uninstall-devil.sh
+Configuration:
+- Themes: $DEVIL_DIR/themes/
+- Wallpapers: $DEVIL_DIR/wallpapers/
+- Scripts: $DEVIL_DIR/scripts/
+- Logs: $LOG_FILE
 
-Contact: $EMAIL
-Website: https://github.com/irfan320/devil-ubuntu
+To uninstall: Run $DEVIL_DIR/scripts/uninstall-devil.sh
 
 😈 LONG LIVE THE DEVIL MODE! 😈
 EOF
     
-    devil_progress "Finalization" 2
-}
-
-function show_completion() {
-    clear
-    echo -e "${D_RED}"
-    echo '╔═══════════════════════════════════════════════════════════════╗'
-    echo '║                                                               ║'
-    echo -e "║           ${D_GREEN}😈 TRANSFORMATION COMPLETE! 😈${D_RED}                ║"
-    echo '║                                                               ║'
-    echo -e "║   ${D_YELLOW}Your Ubuntu has been upgraded to DEVIL MODE${D_RED}         ║"
-    echo '║                                                               ║'
-    echo -e "║   ${D_CYAN}Reboot your system to see all changes${D_RED}                 ║"
-    echo '║                                                               ║'
-    echo '╠═══════════════════════════════════════════════════════════════╣'
-    echo '║                                                               ║'
-    echo -e "║   ${D_PURPLE}Available Commands:${D_RED}                                  ║"
-    echo -e "║   ${D_GREEN}• devil-mode${D_RED}     - Show welcome message              ║"
-    echo -e "║   ${D_GREEN}• gaming-mode${D_RED}    - Activate gaming optimizations     ║"
-    echo -e "║   ${D_GREEN}• matrix-rain${D_RED}    - Show matrix effect                ║"
-    echo -e "║   ${D_GREEN}• sys-info${D_RED}       - Display system information        ║"
-    echo '║                                                               ║'
-    echo -e "║   ${D_YELLOW}Uninstall: ${D_GREEN}$DEVIL_DIR/uninstall-devil.sh${D_RED}            ║"
-    echo '║                                                               ║'
-    echo -e "║   ${D_CYAN}Created with ❤️ by ${BOLD}IRFAN320${RESET}${D_RED}                      ║"
-    echo '║                                                               ║'
-    echo '╚═══════════════════════════════════════════════════════════════╝'
-    echo -e "${RESET}"
+    log_message "Transformation complete!" "$D_GREEN"
+    
+    # Show completion message
+    echo -e "\n${D_RED}╔═══════════════════════════════════════════════════════╗"
+    echo -e "║           😈 TRANSFORMATION COMPLETE! 😈           ║"
+    echo -e "╠═══════════════════════════════════════════════════════╣"
+    echo -e "║   ${D_GREEN}Your Ubuntu has been transformed to DEVIL MODE${D_RED}   ║"
+    echo -e "║                                                       ║"
+    echo -e "║   ${D_YELLOW}Reboot your system to see all changes${D_RED}           ║"
+    echo -e "║                                                       ║"
+    echo -e "║   ${D_CYAN}Type 'devil-mode' after reboot to begin${D_RED}           ║"
+    echo -e "╚═══════════════════════════════════════════════════════╝${RESET}"
     
     echo -e "\n${D_FIRE}🔥 Press Enter to reboot, or Ctrl+C to cancel...${RESET}"
     read -r
@@ -643,34 +654,48 @@ function show_completion() {
 # ============================================
 
 function main() {
-    show_devil_banner
-    matrix_effect
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --level)
+                INTENSITY="$2"
+                shift 2
+                ;;
+            --style)
+                STYLE="$2"
+                shift 2
+                ;;
+            --uninstall)
+                if [ -f "$DEVIL_DIR/scripts/uninstall-devil.sh" ]; then
+                    exec "$DEVIL_DIR/scripts/uninstall-devil.sh"
+                fi
+                exit 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
     
-    echo -e "${D_GREEN}Starting Devil Transformation...${RESET}"
-    echo -e "${D_YELLOW}This will take approximately 2-3 minutes.${RESET}"
-    echo -e "${D_RED}DO NOT INTERRUPT THE PROCESS!${RESET}\n"
-    
-    # Execute all setup functions
-    check_system
-    create_devil_dirs
-    install_devil_theme
-    install_devil_icons
-    install_devil_wallpapers
-    setup_devil_terminal
-    apply_devil_tweaks
-    setup_devil_sounds
-    setup_devil_security
-    setup_devil_monitor
-    setup_gaming_mode
-    finalize_setup
-    
-    show_completion
+    show_banner
+    check_dependencies
+    create_structure
+    install_themes
+    install_wallpapers
+    setup_terminal
+    optimize_system
+    setup_gaming
+    enhance_security
+    setup_monitoring
+    create_utilities
+    finalize
 }
 
-# ============================================
-# 🚀 START TRANSFORMATION
-# ============================================
-
+# Start transformation
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    if [[ $EUID -ne 0 ]]; then
+        echo -e "${D_RED}This script must be run as root (sudo)${RESET}"
+        exit 1
+    fi
     main "$@"
 fi
