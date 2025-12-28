@@ -1,0 +1,683 @@
+#!/usr/bin/env python3
+"""
+🌍 VPN LOCATION CHECKER v5.1 (Honest Mode)
+- Multi-source GeoIP + Consensus
+- Accuracy/Confidence meter
+- Mobile/CGNAT & ISP-level map disclaimer
+"""
+
+import os
+import re
+import sys
+import json
+import time
+import socket
+import platform
+import subprocess
+from datetime import datetime
+from urllib.parse import urlparse
+
+import requests
+
+
+# ===================== CONFIG =====================
+FREE_APIS = [
+    ("ip-api.com", "http://ip-api.com/json/{ip}?fields=status,message,country,countryCode,regionName,city,zip,lat,lon,isp,org,as,asname,timezone,mobile,proxy,hosting,query"),
+    ("ipwho.is", "https://ipwho.is/{ip}"),
+    ("ipapi.co", "https://ipapi.co/{ip}/json/"),
+    ("ipinfo.io", "https://ipinfo.io/{ip}/json"),  # also good for ASN/org
+]
+
+REVERSE_GEOCODE_API = "https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}"
+
+USER_AGENT = "VPN-Location-Checker/5.1 (educational; contact: none)"
+
+
+# ===================== COLORS =====================
+class C:
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    PURPLE = "\033[95m"
+    CYAN = "\033[96m"
+    BOLD = "\033[1m"
+    END = "\033[0m"
+
+
+# ===================== HELPERS =====================
+def clear_screen():
+    os.system("clear" if os.name != "nt" else "cls")
+
+
+def banner():
+    clear_screen()
+    print(f"{C.BOLD}{C.CYAN}")
+    print("╔══════════════════════════════════════════════════════════╗")
+    print("║           🌍 VPN LOCATION CHECKER v5.1 (Honest)          ║")
+    print("║     Multi-source GeoIP + Confidence + Clear Warnings     ║")
+    print("╚══════════════════════════════════════════════════════════╝")
+    print(f"{C.END}")
+    print(f"{C.YELLOW}Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{C.END}")
+    print(f"{C.YELLOW}System: {platform.system()} {platform.release()}{C.END}")
+    print(f"{'='*65}\n")
+
+
+def is_private_ip(ip: str) -> bool:
+    try:
+        # IPv4
+        socket.inet_aton(ip)
+        parts = list(map(int, ip.split(".")))
+        if parts[0] == 10:
+            return True
+        if parts[0] == 172 and 16 <= parts[1] <= 31:
+            return True
+        if parts[0] == 192 and parts[1] == 168:
+            return True
+        if parts[0] == 127:
+            return True
+        return False
+    except Exception:
+        # IPv6 (very simplified checks)
+        try:
+            socket.inet_pton(socket.AF_INET6, ip)
+            return ip.lower().startswith(("fc", "fd", "fe80", "::1"))
+        except Exception:
+            return False
+
+
+def validate_ip(ip: str) -> bool:
+    try:
+        socket.inet_aton(ip)
+        return True
+    except Exception:
+        try:
+            socket.inet_pton(socket.AF_INET6, ip)
+            return True
+        except Exception:
+            return False
+
+
+def get_public_ip() -> str | None:
+    services = [
+        "https://api.ipify.org",
+        "https://icanhazip.com",
+        "https://checkip.amazonaws.com",
+        "https://ifconfig.me/ip",
+    ]
+    for s in services:
+        try:
+            r = requests.get(s, timeout=5, headers={"User-Agent": USER_AGENT})
+            if r.status_code == 200:
+                return r.text.strip()
+        except Exception:
+            pass
+    return None
+
+
+def safe_json(resp: requests.Response):
+    try:
+        return resp.json()
+    except Exception:
+        return None
+
+
+def km_distance(lat1, lon1, lat2, lon2) -> float:
+    # Haversine
+    from math import radians, sin, cos, sqrt, atan2
+
+    R = 6371.0
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R * c
+
+
+def normalize_location(source: str, data: dict, ip: str) -> dict | None:
+    """
+    Return unified schema:
+    country, country_code, region, city, zip, lat, lon, isp, org, asn, timezone, flags
+    """
+    try:
+        loc = {
+            "ip": ip,
+            "source": source,
+            "country": None,
+            "country_code": None,
+            "region": None,
+            "city": None,
+            "zip": None,
+            "lat": None,
+            "lon": None,
+            "isp": None,
+            "org": None,
+            "asn": None,
+            "timezone": None,
+            "flags": {},  # mobile/proxy/hosting if available
+        }
+
+        if source == "ip-api.com":
+            if data.get("status") != "success":
+                return None
+            loc["country"] = data.get("country")
+            loc["country_code"] = data.get("countryCode")
+            loc["region"] = data.get("regionName")
+            loc["city"] = data.get("city")
+            loc["zip"] = data.get("zip")
+            loc["lat"] = data.get("lat")
+            loc["lon"] = data.get("lon")
+            loc["isp"] = data.get("isp")
+            loc["org"] = data.get("org")
+            loc["asn"] = data.get("as") or data.get("asname")
+            loc["timezone"] = data.get("timezone")
+            loc["flags"] = {
+                "mobile": bool(data.get("mobile")),
+                "proxy": bool(data.get("proxy")),
+                "hosting": bool(data.get("hosting")),
+            }
+            return loc
+
+        if source == "ipwho.is":
+            if not data.get("success"):
+                return None
+            loc["country"] = data.get("country")
+            loc["country_code"] = data.get("country_code")
+            loc["region"] = data.get("region")
+            loc["city"] = data.get("city")
+            loc["zip"] = data.get("postal")
+            loc["lat"] = data.get("latitude")
+            loc["lon"] = data.get("longitude")
+            loc["isp"] = data.get("isp")
+            loc["org"] = data.get("org")
+            loc["asn"] = data.get("connection", {}).get("asn")
+            loc["timezone"] = data.get("timezone", {}).get("id")
+            return loc
+
+        if source == "ipapi.co":
+            # ipapi sometimes rate-limits; still ok
+            if "error" in data:
+                return None
+            loc["country"] = data.get("country_name")
+            loc["country_code"] = data.get("country_code")
+            loc["region"] = data.get("region")
+            loc["city"] = data.get("city")
+            loc["zip"] = data.get("postal")
+            loc["lat"] = data.get("latitude")
+            loc["lon"] = data.get("longitude")
+            loc["isp"] = data.get("org")
+            loc["timezone"] = data.get("timezone")
+            return loc
+
+        if source == "ipinfo.io":
+            # lat/lon in "loc": "1.23,103.45"
+            loc["country_code"] = data.get("country")
+            loc["region"] = data.get("region")
+            loc["city"] = data.get("city")
+            loc["zip"] = data.get("postal")
+            org = data.get("org")
+            loc["org"] = org
+            loc["isp"] = org
+            loc["timezone"] = data.get("timezone")
+            locstr = data.get("loc")
+            if locstr and "," in locstr:
+                a, b = locstr.split(",", 1)
+                try:
+                    loc["lat"] = float(a.strip())
+                    loc["lon"] = float(b.strip())
+                except Exception:
+                    pass
+            # ASN best-effort from org like "AS45143 Singtel ..."
+            if org and org.lower().startswith("as"):
+                loc["asn"] = org.split(" ", 1)[0]
+            return loc
+
+    except Exception:
+        return None
+
+    return None
+
+
+def fetch_locations(ip: str) -> list[dict]:
+    print(f"{C.BLUE}[1/4] 🔍 Collecting GeoIP from multiple sources...{C.END}")
+    results = []
+    for name, urltpl in FREE_APIS:
+        url = urltpl.format(ip=ip)
+        domain = urlparse(url).netloc or name
+        try:
+            print(f"   📡 {domain:20}", end=" ")
+            r = requests.get(url, timeout=8, headers={"User-Agent": USER_AGENT})
+            if r.status_code != 200:
+                print(f"{C.RED}✗{C.END}")
+                continue
+            data = safe_json(r)
+            if not isinstance(data, dict):
+                print(f"{C.RED}✗{C.END}")
+                continue
+            loc = normalize_location(name, data, ip)
+            if loc:
+                results.append(loc)
+                print(f"{C.GREEN}✓{C.END}")
+            else:
+                print(f"{C.YELLOW}~{C.END}")
+        except Exception:
+            print(f"{C.RED}✗{C.END}")
+    return results
+
+
+def consensus(locations: list[dict]) -> dict:
+    """
+    Build a consensus location and confidence score based on:
+    - how many sources agree on country/city
+    - how close coordinates are among sources
+    """
+    if not locations:
+        return {"best": None, "confidence": "NONE", "notes": ["No GeoIP sources returned usable data."]}
+
+    # pick "best" starting point: first result, but we'll improve
+    best = locations[0]
+
+    # country agreement
+    countries = [l.get("country") for l in locations if l.get("country")]
+    country_mode = max(set(countries), key=countries.count) if countries else None
+    country_agree = countries.count(country_mode) if country_mode else 0
+
+    # city agreement (if present)
+    cities = [l.get("city") for l in locations if l.get("city")]
+    city_mode = max(set(cities), key=cities.count) if cities else None
+    city_agree = cities.count(city_mode) if city_mode else 0
+
+    # coordinate spread
+    coords = [(l.get("lat"), l.get("lon")) for l in locations if isinstance(l.get("lat"), (int, float)) and isinstance(l.get("lon"), (int, float))]
+    spread_km = None
+    if len(coords) >= 2:
+        # compute max pairwise distance (cheap)
+        maxd = 0.0
+        for i in range(len(coords)):
+            for j in range(i + 1, len(coords)):
+                maxd = max(maxd, km_distance(coords[i][0], coords[i][1], coords[j][0], coords[j][1]))
+        spread_km = maxd
+
+    notes = []
+    if country_mode and best.get("country") != country_mode:
+        # pick a result matching mode country
+        for l in locations:
+            if l.get("country") == country_mode:
+                best = l
+                break
+
+    # confidence logic
+    # High: >=3 sources and city agreement >=2 and coord spread <= 30km
+    # Medium: country agrees >=2 and spread <= 100km
+    # Low: only 1 source OR huge spread
+    n = len(locations)
+    confidence = "LOW"
+
+    if n >= 3 and city_agree >= 2 and (spread_km is None or spread_km <= 30):
+        confidence = "HIGH"
+    elif country_agree >= 2 and (spread_km is None or spread_km <= 100):
+        confidence = "MEDIUM"
+    else:
+        confidence = "LOW"
+
+    if spread_km is not None:
+        notes.append(f"Coordinate spread across sources: ~{spread_km:.1f} km (lower = better).")
+
+    notes.append("GeoIP is ISP-level approximation, not GPS.")
+    return {"best": best, "confidence": confidence, "notes": notes, "country_agree": country_agree, "city_agree": city_agree, "sources": n}
+
+
+def detect_network_type(locations: list[dict]) -> dict:
+    """
+    Detect mobile/hosting/proxy hints safely.
+    """
+    mobile_hints = False
+    hosting_hints = False
+    proxy_hints = False
+
+    org = ""
+    asn = ""
+
+    for l in locations:
+        flags = l.get("flags") or {}
+        if flags.get("mobile"):
+            mobile_hints = True
+        if flags.get("hosting"):
+            hosting_hints = True
+        if flags.get("proxy"):
+            proxy_hints = True
+        if not org and l.get("org"):
+            org = str(l.get("org"))
+        if not asn and l.get("asn"):
+            asn = str(l.get("asn"))
+
+    # keyword heuristics (more careful than before)
+    org_l = org.lower()
+    mobile_keywords = ["mobile", "lte", "cellular", "4g", "5g", "telecom", "telco", "singtel", "m1", "starhub"]
+    hosting_keywords = ["hosting", "datacenter", "cloud", "server", "digitalocean", "linode", "ovh", "hetzner", "aws", "amazon", "google", "microsoft", "azure", "gcp"]
+    vpn_keywords = ["vpn", "proxy", "tunnel", "tor", "exit"]
+
+    if any(k in org_l for k in mobile_keywords):
+        mobile_hints = True
+    if any(k in org_l for k in hosting_keywords):
+        hosting_hints = True
+    if any(k in org_l for k in vpn_keywords):
+        proxy_hints = True
+
+    return {
+        "org": org or "Unknown",
+        "asn": asn or "Unknown",
+        "mobile_like": mobile_hints,
+        "hosting_like": hosting_hints,
+        "proxy_like": proxy_hints,
+    }
+
+
+def reverse_geocode(lat, lon):
+    try:
+        url = REVERSE_GEOCODE_API.format(lat=lat, lon=lon)
+        r = requests.get(url, timeout=10, headers={"User-Agent": USER_AGENT})
+        data = safe_json(r)
+        if not isinstance(data, dict):
+            return None
+        addr = data.get("address", {})
+        if not isinstance(addr, dict):
+            return None
+        # keep only useful parts
+        out = {
+            "road": addr.get("road"),
+            "suburb": addr.get("suburb"),
+            "city": addr.get("city") or addr.get("town"),
+            "county": addr.get("county"),
+            "state": addr.get("state"),
+            "postcode": addr.get("postcode"),
+            "country": addr.get("country"),
+            "full": data.get("display_name"),
+        }
+        return {k: v for k, v in out.items() if v}
+    except Exception:
+        return None
+
+
+def get_local_network_info():
+    info = {"interfaces": [], "dns": [], "gateway": "Unknown"}
+    try:
+        if platform.system().lower() == "linux":
+            r = subprocess.run(["ip", "addr", "show"], capture_output=True, text=True)
+            for line in r.stdout.splitlines():
+                if "inet " in line and "127.0.0.1" not in line:
+                    info["interfaces"].append(line.strip())
+
+            # gateway
+            g = subprocess.run(["ip", "route", "show", "default"], capture_output=True, text=True)
+            info["gateway"] = g.stdout.strip() or "Unknown"
+
+        # dns
+        try:
+            with open("/etc/resolv.conf", "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("nameserver"):
+                        info["dns"].append(line)
+        except Exception:
+            pass
+
+    except Exception as e:
+        info["error"] = str(e)
+    return info
+
+
+def accuracy_explainer(conf: str, nettype: dict) -> str:
+    # honest, simple meter
+    meter = {
+        "HIGH": "🟢 High (city-level likely)",
+        "MEDIUM": "🟡 Medium (area-level likely)",
+        "LOW": "🔴 Low (ISP-level dot / may be far)",
+        "NONE": "⚫ None",
+    }.get(conf, "🔴 Low")
+
+    extra = []
+    if nettype.get("mobile_like"):
+        extra.append("📱 Mobile/CGNAT detected → GeoIP can jump / be inaccurate.")
+    if nettype.get("hosting_like"):
+        extra.append("🏢 Datacenter/Hosting hint → could be VPN/Server IP.")
+    if nettype.get("proxy_like"):
+        extra.append("🛡️ Proxy/VPN keyword hint detected.")
+
+    return meter + ("\n   " + "\n   ".join(extra) if extra else "")
+
+
+def save_report(filename: str, report_text: str):
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(report_text)
+    print(f"\n{C.GREEN}✅ Report saved: {filename}{C.END}")
+
+
+def render_report(ip: str, cons: dict, nettype: dict, rev: dict | None, localnet: dict, locations: list[dict]):
+    best = cons["best"]
+    conf = cons["confidence"]
+
+    lines = []
+    lines.append("=" * 72)
+    lines.append("VPN LOCATION CHECKER REPORT (v5.1 Honest)")
+    lines.append("=" * 72)
+    lines.append(f"Checked at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    lines.append(f"IP: {ip}")
+    lines.append("")
+
+    # console display
+    print(f"\n{C.BOLD}{C.PURPLE}{'='*70}{C.END}")
+    print(f"{C.BOLD}{C.PURPLE}📊 COMPLETE LOCATION REPORT{C.END}")
+    print(f"{C.PURPLE}{'='*70}{C.END}")
+
+    print(f"\n{C.BOLD}🌐 IP INFORMATION:{C.END}")
+    print(f"   IP Address: {C.CYAN}{ip}{C.END}")
+    print(f"   Org/ISP: {C.YELLOW}{nettype.get('org','Unknown')}{C.END}")
+    print(f"   ASN: {C.YELLOW}{nettype.get('asn','Unknown')}{C.END}")
+    print(f"   Confidence: {accuracy_explainer(conf, nettype)}")
+
+    lines.append("IP INFORMATION:")
+    lines.append(f"- Org/ISP: {nettype.get('org','Unknown')}")
+    lines.append(f"- ASN: {nettype.get('asn','Unknown')}")
+    lines.append(f"- Confidence: {conf}")
+    lines.append("")
+
+    if not best:
+        print(f"\n{C.RED}❌ No location data found.{C.END}")
+        return
+
+    print(f"\n{C.BOLD}📍 GEO-LOCATION (Approx):{C.END}")
+    print(f"   Country: {C.YELLOW}{best.get('country','N/A')}{C.END}")
+    print(f"   Region: {best.get('region','N/A')}")
+    print(f"   City: {best.get('city','N/A')}")
+    print(f"   ZIP: {best.get('zip','N/A')}")
+    print(f"   Timezone: {best.get('timezone','N/A')}")
+
+    lines.append("GEO-LOCATION (Approx, not GPS):")
+    lines.append(f"- Country: {best.get('country','N/A')}")
+    lines.append(f"- Region: {best.get('region','N/A')}")
+    lines.append(f"- City: {best.get('city','N/A')}")
+    lines.append(f"- ZIP: {best.get('zip','N/A')}")
+    lines.append(f"- Timezone: {best.get('timezone','N/A')}")
+    lines.append("")
+
+    lat = best.get("lat")
+    lon = best.get("lon")
+    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+        print(f"   Coordinates: {lat}, {lon}")
+
+        # Honest disclaimer
+        print(f"\n{C.BOLD}🗺️ MAP LINKS:{C.END}")
+        print(f"   Google Maps: {C.CYAN}https://maps.google.com/?q={lat},{lon}{C.END}")
+        print(f"   OpenStreetMap: {C.CYAN}https://www.openstreetmap.org/#map=15/{lat}/{lon}{C.END}")
+        print(f"   {C.YELLOW}⚠️ Note:{C.END} Map pin is ISP/Network approximation, not your exact device location.")
+
+        lines.append("MAP LINKS:")
+        lines.append(f"- Google Maps: https://maps.google.com/?q={lat},{lon}")
+        lines.append(f"- OpenStreetMap: https://www.openstreetmap.org/#map=15/{lat}/{lon}")
+        lines.append("NOTE: Map pin is ISP/Network approximation, not exact device/GPS location.")
+        lines.append("")
+
+    if rev:
+        print(f"\n{C.BOLD}🏠 Reverse Geocode (from approximate coords):{C.END}")
+        for k in ["road", "suburb", "city", "county", "state", "postcode", "country"]:
+            if k in rev:
+                print(f"   {k.title()}: {C.GREEN}{rev[k]}{C.END}")
+        if "full" in rev:
+            print(f"   Full: {rev['full']}")
+        lines.append("REVERSE GEOCODE (from approximate coords):")
+        for k, v in rev.items():
+            lines.append(f"- {k}: {v}")
+        lines.append("")
+
+    # Local network info (private IP, DNS)
+    print(f"\n{C.BOLD}📶 LOCAL NETWORK (Private):{C.END}")
+    if localnet.get("interfaces"):
+        for iface in localnet["interfaces"][:3]:
+            print(f"   {C.YELLOW}{iface}{C.END}")
+    if localnet.get("gateway"):
+        print(f"   Gateway: {localnet['gateway']}")
+    if localnet.get("dns"):
+        print("   DNS:")
+        for d in localnet["dns"][:2]:
+            print(f"     {d}")
+
+    lines.append("LOCAL NETWORK (Private IP etc):")
+    for iface in localnet.get("interfaces", [])[:5]:
+        lines.append(f"- {iface}")
+    lines.append(f"- Gateway: {localnet.get('gateway','Unknown')}")
+    for d in localnet.get("dns", [])[:5]:
+        lines.append(f"- {d}")
+    lines.append("")
+
+    # Notes
+    print(f"\n{C.BOLD}📝 NOTES:{C.END}")
+    for n in cons.get("notes", []):
+        print(f"   - {n}")
+
+    lines.append("NOTES:")
+    for n in cons.get("notes", []):
+        lines.append(f"- {n}")
+    lines.append("")
+
+    # show other sources quick
+    if len(locations) > 1:
+        print(f"\n{C.BOLD}📊 SOURCES SUMMARY:{C.END}")
+        for l in locations[:4]:
+            print(f"   {l.get('source')}: {l.get('city','?')} / {l.get('country','?')}")
+
+    lines.append("SOURCES SUMMARY:")
+    for l in locations:
+        lines.append(f"- {l.get('source')}: {l.get('city','?')} / {l.get('country','?')} ({l.get('lat','?')},{l.get('lon','?')})")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+# ===================== MAIN FEATURES =====================
+def check_ip(ip: str):
+    if not validate_ip(ip):
+        print(f"{C.RED}❌ Invalid IP address!{C.END}")
+        return
+
+    if is_private_ip(ip):
+        print(f"{C.YELLOW}⚠️ Private/Local IP detected: {ip}{C.END}")
+        print("   Private IP দিয়ে internet-based GeoIP location পাওয়া যায় না.")
+        print("   এটা শুধু তোমার লোকাল নেটওয়ার্কে কাজ করে (router/Wi-Fi hotspot)।")
+        return
+
+    print(f"\n{C.BOLD}{'='*65}{C.END}")
+    print(f"{C.BOLD}🔍 Checking: {ip}{C.END}")
+    print(f"{C.BOLD}{'='*65}{C.END}")
+
+    locations = fetch_locations(ip)
+    cons = consensus(locations)
+    nettype = detect_network_type(locations)
+
+    rev = None
+    best = cons.get("best") or {}
+    lat, lon = best.get("lat"), best.get("lon")
+    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+        print(f"{C.BLUE}[2/4] 🏘️ Reverse geocoding (approx coords)...{C.END}")
+        rev = reverse_geocode(lat, lon)
+    else:
+        print(f"{C.BLUE}[2/4] 🏘️ Reverse geocoding skipped (no coords).{C.END}")
+
+    print(f"{C.BLUE}[3/4] 📡 Collecting local network info...{C.END}")
+    localnet = get_local_network_info()
+
+    print(f"{C.BLUE}[4/4] ✅ Building report...{C.END}")
+    report = render_report(ip, cons, nettype, rev, localnet, locations)
+    if not report:
+        return
+
+    try:
+        ans = input(f"\n{C.YELLOW}Save report to file? (y/n): {C.END}").strip().lower()
+        if ans == "y":
+            fn = f"location_report_{ip}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            save_report(fn, report)
+    except KeyboardInterrupt:
+        pass
+
+
+def bulk_check():
+    print(f"\n{C.BLUE}BULK IP CHECK{C.END}")
+    ips_input = input(f"{C.YELLOW}Enter IPs (comma/space): {C.END}").strip()
+    ip_list = re.split(r"[,\s]+", ips_input)
+    valid = []
+    for ip in ip_list:
+        if not ip:
+            continue
+        if validate_ip(ip):
+            valid.append(ip)
+        else:
+            print(f"{C.RED}  ❌ {ip} - Invalid{C.END}")
+    for ip in valid:
+        check_ip(ip)
+        print("\n")
+
+
+def main_menu():
+    banner()
+    current_ip = get_public_ip()
+    if current_ip:
+        print(f"{C.GREEN}📱 Your current public IP: {current_ip}{C.END}")
+    else:
+        print(f"{C.RED}❌ Could not fetch public IP.{C.END}")
+
+    while True:
+        print(f"\n{C.BOLD}MAIN MENU:{C.END}")
+        print("  1. Check single IP")
+        print(f"  2. Check current IP ({current_ip or 'N/A'})")
+        print("  3. Bulk check multiple IPs")
+        print("  4. Exit\n")
+
+        try:
+            choice = input(f"{C.YELLOW}Select option (1-4): {C.END}").strip()
+            if choice == "1":
+                ip = input(f"{C.YELLOW}Enter IP: {C.END}").strip()
+                check_ip(ip)
+            elif choice == "2":
+                if current_ip:
+                    check_ip(current_ip)
+                else:
+                    print(f"{C.RED}No public IP available.{C.END}")
+            elif choice == "3":
+                bulk_check()
+            elif choice == "4":
+                print(f"{C.GREEN}Goodbye! 👋{C.END}")
+                break
+            else:
+                print(f"{C.RED}Invalid choice!{C.END}")
+        except KeyboardInterrupt:
+            print(f"\n{C.YELLOW}Exiting...{C.END}")
+            break
+
+
+if __name__ == "__main__":
+    try:
+        main_menu()
+    except ImportError:
+        print("Error: 'requests' module not found!")
+        print("Install with: pip install requests")
+        sys.exit(1)
